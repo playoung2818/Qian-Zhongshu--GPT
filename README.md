@@ -137,3 +137,57 @@ ChatGLM和ChatGPT很容易将鲁迅风格的语言理解为文言文，经过训
 ## 许可证
 
 该项目基于 MIT 许可证发布 - 有关详情，请参见 [LICENSE](LICENSE) 文件。
+
+---
+
+## Qwen2.5 + LoRA 升级路径（推荐）
+
+你当前仓库可以并行保留原 ChatGLM 流程，同时新增 Qwen2.5 方案（更稳、更容易部署）。
+
+### 1) 安装新依赖
+```bash
+pip install -r requirements_qwen.txt
+```
+
+### 2) 数据格式（jsonl）
+每行一条：
+```json
+{"instruction":"用梁实秋风格的语言改写，保持原意。","input":"今天下雨，街上很堵。","output":"今日雨丝绵密，街衢自也添了几分迟滞。"}
+```
+
+已提供示例：
+- `example_data/qianzhongshu_train.jsonl`
+- `example_data/qianzhongshu_eval.jsonl`
+
+### 3) 训练（QLoRA）
+```bash
+bash scripts/run_train_qwen.sh
+```
+
+等价主命令：
+```bash
+python train_qwen_lora.py \
+  --model_name_or_path Qwen/Qwen2.5-7B-Instruct \
+  --train_file example_data/qianzhongshu_train.jsonl \
+  --eval_file example_data/qianzhongshu_eval.jsonl \
+  --output_dir saved_models/qwen2_5_qian_lora
+```
+
+### 4) 推理
+```bash
+bash scripts/run_infer_qwen.sh
+```
+
+等价交互式：
+```bash
+python inference_qwen_lora.py \
+  --model_name_or_path Qwen/Qwen2.5-7B-Instruct \
+  --lora_path saved_models/qwen2_5_qian_lora \
+  --instruction 用梁实秋风格的语言改写，保持原意： \
+  --interactive
+```
+
+### 5) 迁移建议
+- 先在小数据上跑通，再扩到正式语料。
+- 保持固定评测集，按风格贴合/语义保持/流畅度三项打分。
+- 语料版权先确认，再做公开发布。

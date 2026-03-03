@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""Inference script for Qwen2.5 + LoRA style rewrite."""
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+import torch
+from peft import PeftModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser()
+    p.add_argument("--model_name_or_path", default="Qwen/Qwen2.5-7B-Instruct")
+    p.add_argument("--lora_path", required=True)
+    p.add_argument("--instruction", default="用梁实秋风格的语言改写，保持原意：")
+    p.add_argument("--max_new_tokens", type=int, default=200)
+    p.add_argument("--temperature", type=float, default=0.8)
+    p.add_argument("--top_p", type=float, default=0.9)
+    p.add_argument("--input_path", default=None)
+    p.add_argument("--output_path", default=None)
+    p.add_argument("--interactive", action="store_true")
+    return p.parse_args()
+
+
+def build_prompt(instruction: str, text: str) -> str:
+    return (
+        "### 指令:\n"
+        f"{instruction}\n\n"
+        "### 输入:\n"
+        f"{text.strip()}\n\n"
+        "### 输出:\n"
+    )
+
+
+def load_model(base: str, lora: str):
+    tokenizer = AutoTokenizer.from_pretrained(base, use_fast=False)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    model = AutoModelForCausalLM.from_pretrained(
+        base,
+        device_map="auto",
+        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        trust_remote_code=True,
+    )
+    model = PeftModel.from_pretrained(model, lora)
+    model.eval()
+    return tokenizer, model
+
+
+def generate_one(tokenizer, model, instruction: str, text: str, max_new_tokens: int, temperature: float, top_p: float) -> str:
+    prompt = build_prompt(instruction, text)
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    with torch.no_grad():
+        out = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=True,
+            temperature=temperature,
+            top_p=top_p,
+            pad_token_id=tokenizer.eos_token_id,
+        )
+    generated = tokenizer.decode(out[0], skip_special_tokens=True)
+    return generated[len(prompt) :].strip()
+
+
+def main() -> int:
+    args = parse_args()
+    tokenizer, model = load_model(args.model_name_or_path, args.lora_path)
+
+    if args.interactive:
+        print("Interactive mode. Type empty line to exit.")
+        while True:
+            text = input("Input> ").strip()
+            if not text:
+                break
+            ans = generate_one(
+                tokenizer, model, args.instruction, text, args.max_new_tokens, args.temperature, args.top_p
+            )
+            print(f"Output> {ans}\n")
+        return 0
+
+    if not args.input_path:
+        raise ValueError("input_path is required for non-interactive mode")
+
+    lines = [x.strip() for x in Path(args.input_path).read_text(encoding="utf-8").splitlines() if x.strip()]
+    outputs = []
+    for line in lines:
+        out = generate_one(
+            tokenizer, model, args.instruction, line, args.max_new_tokens, args.temperature, args.top_p
+        )
+        outputs.append(f"Instruction: {args.instruction}\nInput: {line}\nOutput: {out}\n")
+
+    if args.output_path:
+        Path(args.output_path).write_text("\n".join(outputs), encoding="utf-8")
+    else:
+        print("\n".join(outputs))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
