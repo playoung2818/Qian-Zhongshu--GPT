@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 from dataclasses import dataclass
 
 import torch
@@ -116,6 +117,11 @@ def main() -> int:
     train_dataset = tokenized["train"]
     eval_dataset = tokenized["validation"] if "validation" in tokenized else None
 
+    strategy_arg = (
+        "eval_strategy"
+        if "eval_strategy" in inspect.signature(TrainingArguments.__init__).parameters
+        else "evaluation_strategy"
+    )
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         learning_rate=args.learning_rate,
@@ -126,7 +132,7 @@ def main() -> int:
         save_steps=args.save_steps,
         logging_steps=args.logging_steps,
         eval_steps=args.eval_steps if eval_dataset is not None else None,
-        evaluation_strategy="steps" if eval_dataset is not None else "no",
+        **{strategy_arg: "steps" if eval_dataset is not None else "no"},
         warmup_ratio=args.warmup_ratio,
         lr_scheduler_type="cosine",
         bf16=args.bf16,
@@ -152,4 +158,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
