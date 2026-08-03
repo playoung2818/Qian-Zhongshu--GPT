@@ -117,12 +117,7 @@ def main() -> int:
     train_dataset = tokenized["train"]
     eval_dataset = tokenized["validation"] if "validation" in tokenized else None
 
-    strategy_arg = (
-        "eval_strategy"
-        if "eval_strategy" in inspect.signature(TrainingArguments.__init__).parameters
-        else "evaluation_strategy"
-    )
-    training_args = TrainingArguments(
+    training_kwargs = dict(
         output_dir=args.output_dir,
         learning_rate=args.learning_rate,
         num_train_epochs=args.num_train_epochs,
@@ -132,24 +127,42 @@ def main() -> int:
         save_steps=args.save_steps,
         logging_steps=args.logging_steps,
         eval_steps=args.eval_steps if eval_dataset is not None else None,
-        **{strategy_arg: "steps" if eval_dataset is not None else "no"},
         warmup_ratio=args.warmup_ratio,
         lr_scheduler_type="cosine",
         bf16=args.bf16,
         fp16=not args.bf16,
         report_to=[],
     )
+    strategy_value = "steps" if eval_dataset is not None else "no"
+    try:
+        training_args = TrainingArguments(
+            **training_kwargs,
+            eval_strategy=strategy_value,
+        )
+    except TypeError as exc:
+        if "eval_strategy" not in str(exc):
+            raise
+        training_args = TrainingArguments(
+            **training_kwargs,
+            evaluation_strategy=strategy_value,
+        )
 
     collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
-    trainer = Trainer(
+    trainer_kwargs = dict(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        tokenizer=tokenizer,
         data_collator=collator,
     )
+    trainer_sig = inspect.signature(Trainer.__init__)
+    if "processing_class" in trainer_sig.parameters:
+        trainer_kwargs["processing_class"] = tokenizer
+    elif "tokenizer" in trainer_sig.parameters:
+        trainer_kwargs["tokenizer"] = tokenizer
+
+    trainer = Trainer(**trainer_kwargs)
     trainer.train()
     model.save_pretrained(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)

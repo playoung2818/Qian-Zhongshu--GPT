@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 
 
-INSTRUCTION = "请续写下面这段文字，保持钱锺书《围城》式的讽刺、机智和叙事语气。"
+INSTRUCTION = "请续写下面这段文字，保持钱钟书《围城》式的讽刺、机智和叙事语气。"
 
 
 def normalize_text(text: str) -> str:

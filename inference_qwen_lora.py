@@ -39,20 +39,28 @@ def load_model(base: str, lora: str):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    if torch.cuda.is_available():
+        device = "cuda"
+        dtype = torch.float16
+    else:
+        device = "cpu"
+        dtype = torch.float32
+
     model = AutoModelForCausalLM.from_pretrained(
         base,
-        device_map="auto",
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        torch_dtype=dtype,
         trust_remote_code=True,
     )
     model = PeftModel.from_pretrained(model, lora)
+    model = model.to(device)
     model.eval()
     return tokenizer, model
 
 
 def generate_one(tokenizer, model, instruction: str, text: str, max_new_tokens: int, temperature: float, top_p: float) -> str:
     prompt = build_prompt(instruction, text)
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
     with torch.no_grad():
         out = model.generate(
             **inputs,
@@ -60,7 +68,7 @@ def generate_one(tokenizer, model, instruction: str, text: str, max_new_tokens: 
             do_sample=True,
             temperature=temperature,
             top_p=top_p,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
         )
     generated = tokenizer.decode(out[0], skip_special_tokens=True)
     return generated[len(prompt) :].strip()
