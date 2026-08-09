@@ -113,15 +113,6 @@ def respond_lincoln(message: str, history: list[dict[str, str]]) -> str:
 
 with gr.Blocks(title="Reanimation Jutsu") as demo:
     gr.Markdown("# Reanimation Jutsu")
-    with gr.Tab("钱钟书 Qian Zhongshu"):
-        gr.ChatInterface(
-            fn=respond_qian,
-            description="输入一个问题或一段文字。模型将使用微调后的讽刺、机智和比喻风格作答。",
-            examples=[
-                "请谈谈现代人对手机的依赖。",
-                "一个人为了显得有学问，总爱引用自己不懂的书。请评论他。",
-            ],
-        )
     with gr.Tab("Abraham Lincoln"):
         gr.ChatInterface(
             fn=respond_lincoln,
@@ -133,6 +124,15 @@ with gr.Blocks(title="Reanimation Jutsu") as demo:
                 "How might Lincoln's principles inform a discussion about border walls?",
                 "What can Lincoln's writings teach us about political hatred today?",
                 "How should a democracy respond when false claims spread online?",
+            ],
+        )
+    with gr.Tab("钱钟书 Qian Zhongshu"):
+        gr.ChatInterface(
+            fn=respond_qian,
+            description="输入一个问题或一段文字。模型将使用微调后的讽刺、机智和比喻风格作答。",
+            examples=[
+                "请谈谈现代人对手机的依赖。",
+                "一个人为了显得有学问，总爱引用自己不懂的书。请评论他。",
             ],
         )
 
