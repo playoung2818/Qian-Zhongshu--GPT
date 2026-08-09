@@ -136,4 +136,4 @@ with gr.Blocks(title="Reanimation Jutsu") as demo:
             ],
         )
 
-demo.queue(default_concurrency_limit=1).launch()
+demo.queue(default_concurrency_limit=1).launch(ssr_mode=False)
