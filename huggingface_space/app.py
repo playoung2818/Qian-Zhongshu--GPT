@@ -116,6 +116,7 @@ with gr.Blocks(title="Reanimation Jutsu") as demo:
     with gr.Tab("Abraham Lincoln"):
         gr.ChatInterface(
             fn=respond_lincoln,
+            cache_examples=False,
             description=(
                 "Ask about modern society or historical principles. The model "
                 "uses a Lincoln-inspired style without claiming to be Lincoln."
@@ -129,6 +130,7 @@ with gr.Blocks(title="Reanimation Jutsu") as demo:
     with gr.Tab("钱钟书 Qian Zhongshu"):
         gr.ChatInterface(
             fn=respond_qian,
+            cache_examples=False,
             description="输入一个问题或一段文字。模型将使用微调后的讽刺、机智和比喻风格作答。",
             examples=[
                 "请谈谈现代人对手机的依赖。",
